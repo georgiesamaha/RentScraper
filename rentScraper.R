@@ -14,20 +14,22 @@ library(stats)
 library(tidyverse)
 library(GGally)
 
-# parameters ------------------------------------------------------------------
+# parameters ##################################################################
 
 prop_config <- c(1, 1)    # target 1 bed 1 bath apartments
 props_to_pull <- 25       # pages of apartments to loop through
 
-# main - scrape ---------------------------------------------------------------
 
-setwd("/Users/georgiesamaha/Desktop/RentScrape")
+setwd("") # set working directory to save outputs
 
-# set up a vector of URLs which we will be looping through
-urls <- paste0('https://www.auhouseprices.com/rent/list/NSW/2011/Rushcutters+Bay/',
+# scrape ######################################################################
+
+# fill in suburb-specific url from https://www.auhouseprices.com/rent
+urls <- paste0('',
                1:props_to_pull, '/?sort=date&type=apartment&bmin=',
                prop_config[1], '&bmax=', prop_config[1])
 
+# loop through URLs
 for (i in 1:length(urls)) {
   
   if(i == 1 & exists('rent_all')) rm(rent_all)
@@ -36,7 +38,7 @@ for (i in 1:length(urls)) {
   print(paste0('getting ', i))
   temp <- read_html(curr_url)
   
-  # sleeping for 2 seconds so as not to bombard the server with requests
+  # sleep between requests for 2 seconds so as not to bombard the server
   print('sleeping')
   Sys.sleep(2)
   
@@ -87,7 +89,7 @@ ads <- rent_all[grepl(pattern, rent_all$config), ]
 # save it to csv file to share with agent 
 write.table(ads, file = 'rental_units_rushcuttersBay_2020_2022.csv', quote = FALSE, sep=',')
 
-# analyse ---------------------------------------------------------------------
+# analyse ####################################################################
 
 # pre-smoothing plot the distribution 
 ads %>%
@@ -104,13 +106,14 @@ ads %>%
 # what is the suburb median?
 median(ads$price)
 
-# smoothing using rolling quarterly median
+# smooth data using rolling quarterly median
 monthly_medians <- ads %>%
   group_by(month) %>%
   summarise(median_price = median(price))
 
 rol_median <- rollmedian(monthly_medians$median_price, 3, na.pad = TRUE,
                          align = 'right')
+
 names(rol_median) <- monthly_medians$month
 
 rol_median <- data.table(month = as.Date(names(rol_median)),
@@ -129,25 +132,23 @@ rol_median %>%
        title = 'Weekly rental prices in Rushcutters Bay',
        subtitle = 'Smoothed by rolling quarterly median')
 
-# take a closer look at 16 Waratah St, Rushcutters Bay 
-waratah <- ads %>%
-  filter(grepl("16-18 waratah", address, ignore.case = TRUE) | grepl("16 waratah", address, ignore.case = TRUE))
+# take a closer look at an address of interest. I used it to look at my apartment building 
+building <- ads %>%
+  filter(grepl("", address, ignore.case = TRUE) # fill in the grepl 
 
-# Convert the date column to a date data type
-waratah$date <- as.Date(waratah$month, format = "%Y-%m-%d")
-
-# Extract the year from the date column
-waratah$year <- year(waratah$date)
+# extract the year from the date column
+building$date <- as.Date(building$month, format = "%Y-%m-%d")
+building$year <- year(building$date)
 
 # Extract the unit and unit number from the address column
-waratah$unit <- str_extract(waratah$address, "\\d+/\\d+")
-waratah$unit_number <- str_extract(waratah$unit, "\\d+")
+building$unit <- str_extract(building$address, "\\d+/\\d+")
+building$unit_number <- str_extract(building$unit, "\\d+")
 
 # what is the median unit price pw at my address
-addressMedian <- median(waratah$price)
+addressMedian <- median(building$price)
 
 # Group the data by unit and select the top row (i.e., the row with the maximum price) for each group
-max_price_by_unit <- waratah %>%
+max_price_by_unit <- building %>%
   group_by(unit) %>%
   top_n(1, price)
 
@@ -158,7 +159,6 @@ ggplot(data = max_price_by_unit, aes(x = unit_number, y = price)) +
   theme_bw()+
   theme(panel.grid = element_blank()) +
   labs(x = 'Unit', y = 'Price ($ per week)',
-       title = 'Weekly rental prices at 16 Waratah Street',
-       subtitle = 'Median rental price of $570 indicated by black line')
+       title = 'Weekly rental prices at') # fill in address
 
 
